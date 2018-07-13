@@ -1,0 +1,1 @@
+false false false false false true true true false 10 11 12 13 12 false false false false false true false true false 9 10 9 10 11 false false true true false false true true true 8 7 8 -1 12 false true false false false false false true false 7 6 3 2 1 0
