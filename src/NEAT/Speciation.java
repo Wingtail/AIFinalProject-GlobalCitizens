@@ -7,7 +7,7 @@ public class Speciation {
     public static double coefficient_Excess = 1.0;
     public static double coefficient_Disjoint = 1.0;
     public static double coefficient_Weight = 0.4;
-    public static double delta_threshold = 3;
+    public static double delta_threshold = 0.5;
 
     private double weightSum = 0;
     private int matchCount = 0;

@@ -471,7 +471,7 @@ public class Population {
 						candidate = j;
 					}
 				}
-				while(leftPopulation > 0)
+				while(leftPopulation > 0 && counter < offspring_list.length)
 				{
 				    System.out.println("Offspring "+counter);
 					offspring_list[counter] = new Organism();
@@ -580,7 +580,7 @@ public class Population {
 				}
 			}
 
-			while(producePopulation > 0)
+			while(producePopulation > 0 && counter < offspring_list.length)
 			{
                 System.out.println("Offspring "+counter);
 				offspring_list[counter] = new Organism();

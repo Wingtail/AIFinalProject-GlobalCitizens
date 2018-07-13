@@ -32,7 +32,7 @@ import javax.swing.Timer;
 class Agent extends JComponent{
    
    //Agent Parameters
-   double proxLength = 300;
+   double proxLength = 1000;
    double speed = 1;
    double angle = Math.PI*3/2;
    int size = 100;
@@ -50,6 +50,8 @@ class Agent extends JComponent{
 
    double timeSpawned = 0.0;
    double timeAlive = 0.0;
+
+   double oldFitness = 0;
 
    int currentBushIndex = 0;
 
@@ -164,23 +166,27 @@ class Agent extends JComponent{
       //System.out.println(x + " - " + y);
    }
 
-   public void computeFitness(int bushFire, double bushMax)
+   public void computeFitness(double bushFire)
    {
-
-       this.organism.fitness = (this.timeAlive - this.timeSpawned)/1000 + (bushMax - bushFire); //Add bushfire also
+       double distFromStart = Math.sqrt(Math.pow(xPos-135,2)+Math.pow(yPos-90,2));
+       if(bushFire == 0)
+       {
+           bushFire = 0.0001;
+       }
+       this.organism.fitness = distFromStart/(bushFire*100); //Add bushfire also
    }
 
     public void computeSpeed()
     {
-        System.out.println(p0+" "+p1);
+        //System.out.println(p0+" "+p1);
         this.organism.getNetwork().ForwardProp(this.p0,this.p1);
         double[] output = this.organism.getNetwork().output();
 
-        System.out.println("Output: "+output[0]+" - "+output[1]);
+        //System.out.println("Output: "+output[0]+" - "+output[1]);
 
-        leftSpeed = (int)(output[0]*100+30);
-        System.out.println(leftSpeed);
-        rightSpeed = (int)(output[1]*100+30);
+        leftSpeed = (int)(output[0]*100);
+        //System.out.println(leftSpeed);
+        rightSpeed = (int)(output[1]*100);
     }
     public double getProx(int side, Object obsList []) {
         Point intersect = new Point();
@@ -591,12 +597,12 @@ class Object extends JComponent{
       }
    }
    public void update() {//does not get called
-      System.out.print("update function");
+      //System.out.print("update function");
       //x += Math.sin(Math.toRadians(facing))*speed;
       //y += Math.cos(Math.toRadians(facing))*speed;
    }
    public double[] getPos() {
-      System.out.println(x1 + " - " + y1 + " --------- " + x2 + " - " + y2);//does print
+      //System.out.println(x1 + " - " + y1 + " --------- " + x2 + " - " + y2);//does print
       double corners [] = new double[4];
       
       corners[0] = (double)x1;
@@ -644,7 +650,7 @@ class Maze extends JComponent {
         //fileName += (int)(Math.random()*1000);
         fileName += (int)(Math.random()*1000);
         //System.out.println(fileName);
-        System.out.println("File Name: "+fileName);
+        //System.out.println("File Name: "+fileName);
         File file = new File("Maps4/" + fileName.substring(0,3) +"/" +fileName + ".txt");
         Scanner scan;
         int bugCounter = 0;
@@ -699,8 +705,8 @@ class Maze extends JComponent {
                             obsList.add(obs);
                         }
                         bugCounter++;
-                        System.out.println(bugCounter);
-                        System.out.println("size: "+(randomBoardSize-1)+"");
+                        //System.out.println(bugCounter);
+                        //System.out.println("size: "+(randomBoardSize-1)+"");
                     }
 
 
@@ -719,7 +725,7 @@ class Maze extends JComponent {
                             obsList.add(obs);
                         }
                         bugCounter++;
-                        System.out.println(bugCounter);
+                        //System.out.println(bugCounter);
                     }
                 }
                 for(int b =0; b < (randomBoardSize); b ++) {
@@ -727,7 +733,7 @@ class Maze extends JComponent {
                     counterb ++;
                 }
             }
-            System.out.println(bugCounter);
+           // System.out.println(bugCounter);
         } catch (FileNotFoundException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -777,14 +783,24 @@ class EnvironmentTest extends JFrame {
 
    public static GUI panel;
 
+    boolean crunchMode = true;
+
    public NEAT_Toolchain nTool = new NEAT_Toolchain();
 
+    static Organism bestFit = null;
+
  public EnvironmentTest() {
+
+
+
    panel = new GUI();
+
    addWindowListener(new WindowAdapter() {
          public void windowClosing(WindowEvent e) {
              Timer timer = panel.getTimer();
+             networkJsonEncoder.exportNetwork(bestFit.getGenome());
              networkJsonEncoder.endProcess();
+
              timer.stop();
          }
      }
@@ -808,21 +824,40 @@ class EnvironmentTest extends JFrame {
      {
          for(j=0;j<Population.getPopulationElement(i).getSpeciesSize();j++)
          {
-             System.out.println("Genome "+counter+": "+Population.getPopulationElement(i).getSpeciesElement(j));
+             //System.out.println("Genome "+counter+": "+Population.getPopulationElement(i).getSpeciesElement(j));
              agentList[counter] = new Agent(135,90,Population.getPopulationElement(i).getSpeciesElement(j));
              agentList[counter].timeSpawned = System.currentTimeMillis();
-             System.out.println("Agent : "+agentList[counter]);
+             //System.out.println("Agent : "+agentList[counter]);
              counter++;
          }
      }
 
-     System.out.println("Agent List: "+agentList);
+     //System.out.println("Agent List: "+agentList);
  }
 
- public static void main(String[] args) {
+    public static int front_convert(double dis) //The function works for all distances from 2cm-15cm.
+    {
+        double prox = 0.1908*(dis*dis) - 8.2441*dis + 90.762;//function that converts ideal distance to FRONT proximity reading.
+        int roundedProx = (int) Math.round(prox);
+        return roundedProx;
+    }
+
+    public static int side_convert(double dis) //The function works for all distances from 1cm-5cm.
+    {
+        double sideProx = 1.2381*(dis*dis) - 18.095*dis + 69.857;//function that converts ideal distance to SIDE proximity reading.
+        int roundedProx = (int) Math.round(sideProx);
+        return roundedProx;
+    }
+
+
+    public static void main(String[] args) {
    EnvironmentTest envi = new EnvironmentTest();
 
-   int timeRemainSpaceThresh = 5;
+   int timeRemainSpaceThresh = 3;
+
+    int speed = 100;
+
+    int generationThreshold = 10;
 
 //     Agent a1 = new Agent(400,400);
 //
@@ -857,166 +892,175 @@ class EnvironmentTest extends JFrame {
    {
        agents.add(agent);
    }
-   
+   double oldFitness = 0;
    while(true) {
       //Repaints GUI, triggering refresh of all jComp's
-      envi.getContentPane().validate();
-      envi.getContentPane().repaint();
-      
-      // Calls agents update function
-       for(int i = 0; i<agents.size();i++)
+
+       if(envi.nTool.getGeneration() > generationThreshold)
        {
-           System.out.println("Agent Size: "+agents.size());
-           if(agents.get(i).isAlive) { //get Peripheral sensors, evaluate fitness
-               agents.get(i).update();
-               agents.get(i).p0 = agents.get(i).getProx(0, obsList);
-               //System.out.println("p0: "+agents.get(i).getProx(0,obsList));
-               agents.get(i).p1 = agents.get(i).getProx(1, obsList);
-
-               if((agents.get(i).timeAlive - agents.get(i).timeSpawned)/1000 > 10)
-               {
-                   agents.get(i).isAlive = false;
-               }
-
-               m.update();
-
-               double dx = 90;
-               double dy = 90;
-
-               System.out.println("dx = "+dx+"   "+"dy = "+dy);
-               System.out.println("Agent xPos: "+(agents.get(i).x1+agents.get(i).x3)/2+"        "+"yPos: "+(agents.get(i).y1+agents.get(i).y3)/2);
-
-               int xCord = (int)((((agents.get(i).x1+agents.get(i).x3)+90)/2)/dx);
-               int yCord = (int)((((agents.get(i).y1+agents.get(i).y3)+90)/2)/dy);
-               int bushFireIndex = xCord+m.randomBoardSize*yCord;
-               if(agents.get(i).currentBushIndex != bushFireIndex)
-               {
-                   agents.get(i).timeStayedinPosStart = System.currentTimeMillis();
-                   agents.get(i).timeStayedinPosEnd = System.currentTimeMillis();
-                   agents.get(i).currentBushIndex = bushFireIndex;
-               }else{
-                   agents.get(i).timeStayedinPosEnd = System.currentTimeMillis();
-               }
-
-               if((agents.get(i).timeStayedinPosEnd - agents.get(i).timeStayedinPosStart)/1000 > timeRemainSpaceThresh)
-               {
-                   System.out.println("Stayed in position too long");
-                   agents.get(i).isAlive = false;
-               }
-
-               double max = -Double.MAX_VALUE;
-               double bushMAX = 0;
-
-               for(double bush : m.bushfire)
-               {
-                    if(bush > max)
-                    {
-                        bushMAX = bush;
-                        max = bush;
-                    }
-               }
-                try {
-                    int bushVal = m.bushfire[bushFireIndex];
-
-                    //get bushfire
-
-                    agents.get(i).computeFitness(bushVal, bushMAX);
-                    System.out.println("PRE COLLISION CHECK");
-
-                    if (agents.get(i).isCollided(obsPos)) {
-                        System.out.println("Collided");
-                        agents.get(i).isAlive = false;
-                        print("Working");
-                    }
-
-                    counter++;
-                } catch(Exception e){
-                   System.out.println("Error With Agents");
-                   agents.removeAll(agents);
-                }
-               //System.out.println(counter);
-
-           }else{
-               stop(agents.get(i));
-               agents.remove(i);
-               System.out.println("Agent Removed");
-               i--;
-           }
-
-           try {
-               Thread.sleep(1);
-           } catch (InterruptedException e1) {
-               e1.printStackTrace();
-           }
-           //print(p0 + "," + p1);
-
+           envi.crunchMode = false;
+           speed = 100;
        }
 
-       if(agents.size() == 0)
-       {
 
-           int i;
-           int j;
 
-           envi.getContentPane().removeAll();
 
-           Organism bestFitOrganism = envi.nTool.EvaluateGeneration();
-           envi.networkJsonEncoder.exportNetwork(bestFitOrganism.getGenome());
-           System.out.println("Evaluated New Generation\nGeneration: "+envi.nTool.getGeneration());
-           envi.agentList = new Agent[envi.population];
+      
+      // Calls agents update function
+       for(int sp=0;sp<speed;sp++) {
+           envi.getContentPane().validate();
+           envi.getContentPane().repaint();
+           for (int i = 0; i < agents.size(); i++) {
+               //System.out.println("Agent Size: "+agents.size());
+               if (agents.get(i).isAlive) { //get Peripheral sensors, evaluate fitness
+                   agents.get(i).update();
+                   agents.get(i).p0 = agents.get(i).getProx(0, obsList);
+                   //System.out.println("p0: "+agents.get(i).getProx(0,obsList));
+                   agents.get(i).p1 = agents.get(i).getProx(1, obsList);
 
-           counter = 0;
 
-           for(i=0;i<Population.getPopulationSize();i++)
-           {
-               for(j=0;j<Population.getPopulationElement(i).getSpeciesSize();j++)
-               {
-                   envi.agentList[counter] = new Agent(135,90,Population.getPopulationElement(i).getSpeciesElement(j));
-                   envi.agentList[counter].timeSpawned = System.currentTimeMillis();
-                   envi.agentList[counter].timeStayedinPosStart = System.currentTimeMillis();
-                   counter++;
+                   if ((agents.get(i).timeAlive - agents.get(i).timeSpawned) / 1000 > 2) {
+                       if(Math.abs(agents.get(i).organism.fitness-agents.get(i).oldFitness) < 0.1)
+                       {
+                           agents.get(i).isAlive = false;
+                       }
+                       agents.get(i).oldFitness = agents.get(i).organism.fitness;
+
+                       agents.get(i).timeSpawned = System.currentTimeMillis();
+                   }
+
+                   if ((agents.get(i).timeAlive - agents.get(i).timeSpawned) / 1000 > 30) {
+                       agents.get(i).isAlive = false;
+                   }
+
+
+                   m.update();
+
+                   int dx = 90;
+                   int dy = 90;
+
+                   //System.out.println("dx = "+dx+"   "+"dy = "+dy);
+                   // System.out.println("Agent xPos: "+(agents.get(i).x1+agents.get(i).x3)/2+"        "+"yPos: "+(agents.get(i).y1+agents.get(i).y3)/2);
+
+                   int xCord = (int)(agents.get(i).xPos/dx);
+                   int yCord = (int)(agents.get(i).yPos/dy);
+                   int bushFireIndex = xCord + m.randomBoardSize * yCord;
+                   if (agents.get(i).currentBushIndex != bushFireIndex) {
+                       //System.out.println("Trigger");
+                       agents.get(i).timeStayedinPosStart = System.currentTimeMillis();
+                       agents.get(i).timeStayedinPosEnd = System.currentTimeMillis();
+                       agents.get(i).currentBushIndex = bushFireIndex;
+                   } else {
+                       agents.get(i).timeStayedinPosEnd = System.currentTimeMillis();
+                   }
+
+                   if ((agents.get(i).timeStayedinPosEnd - agents.get(i).timeStayedinPosStart) / 1000 > timeRemainSpaceThresh) {
+                       //System.out.println("Stayed in position too long");
+
+                           agents.get(i).isAlive = false;
+
+
+                   }
+
+                   try {
+                       int bushVal = m.bushfire[bushFireIndex];
+
+                       //get bushfire
+
+                       agents.get(i).computeFitness(bushVal);
+                       //System.out.println("PRE COLLISION CHECK");
+
+                       if (agents.get(i).isCollided(obsPos)) {
+                           //System.out.println("Collided");
+                           agents.get(i).isAlive = false;
+                           //print("Working");
+                       }
+
+                       counter++;
+                   } catch (Exception e) {
+                       System.out.println("Error With Agents");
+                       agents.removeAll(agents);
+                   }
+                   //System.out.println(counter);
+
+               } else {
+                   stop(agents.get(i));
+                   agents.remove(i);
+                   //System.out.println("Agent Removed");
+                   i--;
                }
+
+               try {
+                   Thread.sleep(1);
+               } catch (InterruptedException e1) {
+                   e1.printStackTrace();
+               }
+               //print(p0 + "," + p1);
+
            }
 
 
-           m = new Maze(5,5, envi.agentList[0]);
+           if (agents.size() == 0) {
+
+               int i;
+               int j;
+
+               envi.getContentPane().removeAll();
+
+               envi.bestFit = envi.nTool.EvaluateGeneration();
+
+               //System.out.println("Evaluated New Generation\nGeneration: "+envi.nTool.getGeneration());
+               envi.agentList = new Agent[envi.population];
+
+               counter = 0;
+
+               for (i = 0; i < Population.getPopulationSize(); i++) {
+                   for (j = 0; j < Population.getPopulationElement(i).getSpeciesSize(); j++) {
+                       envi.agentList[counter] = new Agent(135, 90, Population.getPopulationElement(i).getSpeciesElement(j));
+                       envi.agentList[counter].timeSpawned = System.currentTimeMillis();
+                       envi.agentList[counter].timeStayedinPosStart = System.currentTimeMillis();
+                       counter++;
+                   }
+               }
+
+
+               m = new Maze(5, 5, envi.agentList[0]);
 //     Object o = o1;
 
 
-           envi.add(envi.agentList[0]);
-           envi.agentList[0].add(m);
-           for(i = 1; i < envi.agentList.length; i ++) {
-               envi.agentList[0].add(envi.agentList[i]);
+               envi.add(envi.agentList[0]);
+               envi.agentList[0].add(m);
+               for (i = 1; i < envi.agentList.length; i++) {
+                   envi.agentList[0].add(envi.agentList[i]);
+               }
+
+
+               obsPos = new double[m.obsList.size()][4];
+
+               obsList = new Object[m.obsList.size()];
+               for (i = 0; i < m.obsList.size(); i++) {
+                   obsPos[i] = m.obsList.get(i).getPos();
+               }
+               for (i = 0; i < m.obsList.size(); i++) {
+                   obsList[i] = m.obsList.get(i);
+               }
+               m.update();
+
+               counter = 0;
+
+               envi.nTool.incrementGeneration();
+               System.out.println("Generation " + envi.nTool.getGeneration());
+               System.out.println("Total Fitness: "+Population.getTotalFitness());
+               for (Agent agent : envi.agentList) {
+                   agents.add(agent);
+                   //System.out.println("New Agent isAlive: "+agent.isAlive);
+                   //System.out.println("New Agent xPos: "+agent.x);
+                   //System.out.println("New Agent yPos: "+agent.y);
+                   //System.out.println("New Agent timeStayedinPosStart: "+agent.timeStayedinPosStart);
+                   //System.out.println("New Agent timeStayedinPosEnd: "+agent.timeStayedinPosEnd);
+               }
+
            }
-
-
-           obsPos = new double[m.obsList.size()][4];
-
-           obsList = new Object[m.obsList.size()];
-           for(i = 0 ; i < m.obsList.size(); i++) {
-               obsPos[i] = m.obsList.get(i).getPos();
-           }
-           for(i = 0 ; i < m.obsList.size(); i++) {
-               obsList[i] = m.obsList.get(i);
-           }
-           m.update();
-
-           counter = 0;
-
-
-
-
-           envi.nTool.incrementGeneration();
-           for(Agent agent:envi.agentList)
-           {
-               agents.add(agent);
-               System.out.println("New Agent isAlive: "+agent.isAlive);
-               System.out.println("New Agent xPos: "+agent.x);
-               System.out.println("New Agent yPos: "+agent.y);
-               System.out.println("New Agent timeStayedinPosStart: "+agent.timeStayedinPosStart);
-               System.out.println("New Agent timeStayedinPosEnd: "+agent.timeStayedinPosEnd);
-           }
-
        }
 
    }
